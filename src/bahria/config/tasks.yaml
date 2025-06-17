@@ -1,0 +1,26 @@
+analyze_query_task:
+  description: >
+    Analyze the user query to determine if it's a general/greeting related or query related to requesting fetch property in bahria town.
+    Output a JSON string without markdown format e.g(``` json), with one key 'query_type' and second key 'response', if the user_input is general/greeting populate the value of "query_type"  as "general_query" and value of response as the answer of user_input acting as helpful assistant of real estate in bahria town, e.g "Hi there, How can I assist you finding property in bahria town?".
+    And, if the user_input is related to property_fetch request, then populate value of "query_type" as "property_fetch_request" and value of response an empty string like "". 
+    Remember general question about bahria town (like: what/where is bahria town? etc) is not property fetching request.
+    Example output should be like this(a JSON string): '{"query_type": "general_query", "response": "Hello! How can I assist you today?"}' or '{"query_type": "property_fetch_request", "response": ""}'
+  expected_output: >
+    A JSON string, e.g., '{"query_type": "general_query", "response": "Hello! How can I assist you today?"}' or '{"query_type": "property_fetch_request", "response": ""}'
+
+fetch_property_task: 
+  description: >
+    Process the following user query: '{user_input}' and provide an appropriate response.
+      1. Convert the natural language query into a MongoDB query using find() filter or aggregation pipeline as appropriate. 
+        Always remember, do **not** include any explanations, comments, or additional markdown format e.g(``` json) only the plain string query itself
+        To make mongoDB queries of natural language questions, follow the prompt template below in triple backticks:
+        ```{prompt}```
+      2. Run the query using the MongoDBQueryTool.
+      3. If the query fails due to syntax errors, spelling mistakes, or incorrect field names, reason on the failure, regenerate a corrected MongoDB query, and rerun it.
+      4. If no data is found due to narrow criteria (e.g., fixed price), broaden the criteria (e.g., use a price range instead), regenerate the query, and rerun it.
+      5. If data is fetched, summarize each fetched documents collectively by giving individual summarized beark down of important features like(purpose,payment_type,price,area_size,owner_contact, phase, city etc) in natural language and user-friendly way.
+      6. If no data is found after all attempts, apologize and suggest broadening the search criteria.
+      7. Here are previous interactions with the assistant to let you context aware, use this data and avoid generating query and running tool if the user asks about previously fetch data: {context} 
+  expected_output: >
+    Generate a polite and summarized response to the property query, including error handling or suggestions if no data is found.
+  agent: property_agent
