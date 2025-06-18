@@ -10,8 +10,6 @@ from google import genai
 from tools.mongo_tool import MongoTool
 from dotenv import load_dotenv
 from pydantic import BaseModel
-from crewai.memory.external.external_memory import ExternalMemory
-from crewai.memory.storage.interface import Storage
 import streamlit as st
 import google.generativeai as genai
 
@@ -75,38 +73,6 @@ class Bahria():
             agent=self.property_agent()
         )
     
-
-# class CustomStorage(Storage):
-#     def __init__(self):
-#         #self.memories = []
-#         self.messages: List[Dict] = []
-
-#     def save(self, value):
-#         #self.memories.append(value)
-#         """Parse and store messages in Gemini's conversation format"""
-#         if value.startswith("User: "):
-#             role = "user"
-#             text = value[len("User: "):]
-#         elif value.startswith("Assistant: "):
-#             role = "model"
-#             text = value[len("Assistant: "):]
-#         else:
-#             role = "user"
-#             text = value
-
-#         self.messages.append({
-#             "role": role,
-#             "parts": [{"text": text}]
-#         })
-
-#     # def search(self, query=None, limit=None, score_threshold=None): #optional
-#     #     # Return full conversation history as-is
-#     #     return self.memories
-
-#     def reset(self):
-#         self.messages = []
-
-# external_memory = ExternalMemory(storage=CustomStorage())
 
 class FlowState(BaseModel):
     user_input: str = ""
