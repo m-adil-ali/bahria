@@ -112,7 +112,7 @@ if __name__ == "__main__":
     if not gemini_api_key:
         st.error("Gemini API key not found. Please set the 'GEMINI_API_KEY' environment variable.")
         st.stop()
-
+    
     # Run the Streamlit app
     run()
 
