@@ -1,6 +1,6 @@
-__import__('pysqlite3')
-import sys
-sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
+# __import__('pysqlite3')
+# import sys
+# sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
 
 from crew import RealEstateFlow, Bahria
 import streamlit as st
@@ -13,7 +13,7 @@ warnings.filterwarnings("ignore", category=SyntaxWarning, module="pysbd")
 
 prompt_template='''
 You are an expert MongoDB query engineer with over 10 years of hands-on experience writing advanced NoSQL queries, specifically for MongoDB.
-Your task is to generate a **single valid MongoDB query string** based on a **natural language question** provided in triple backticks quotation below. 
+Your task is to generate a **single valid plain MongoDB query string without markdown format** based on a **natural language question** provided above in single quotation. 
 Do **not** include any explanations, comments, or additional markdown format e.g(``` json) only the query itself(always remember).
 Do **not** generate any deletion, trimming, cutting or update queries, only `find()` or `aggregate()` queries without markdown format.
 You have 7 collections in the database names are enlisted below use only these valid collections while generating query:
@@ -27,7 +27,7 @@ And here is the schema of each collection, use only these valid fields while gen
 "Home": ["_id","purpose","property_type","payment_type","title","description","price","area_size","owner_contact","city","society","phase","bedrooms","bathrooms","floor_level","parking","furnished"],
 "Shop": ["_id","purpose","property_type","payment_type","title","description","price","area_size","owner_contact","city","society","phase","floor_level","shop_number","furnished","corner_shop"]
 **Ignore the `_id` field and "property_type" in all collections while generating mongoDB queries.**
-**Use find() filter when the `user_input` is a simple query(querying about one collection) and use aggregate() pipeline when the `user_input` is complex query(querying about two or more collections).**
+**Use find() filter when the `user_input` is a simple query(querying about one collection) and always use aggregate() pipeline when the `user_input` is complex query(querying about two or more collections).**
 
 <<Examples>>
 - user_input: ```Find me a home in bahria town Lahore with more than 5 marla area for sale.```
@@ -59,7 +59,7 @@ def run():
     """
     Run the crew.
     """
-    st.title("Bahria Town Real Estate Chatbot")
+    st.title("🏡Bahria Town Real Estate Chatbot")
 
     # Initialize session state for messages
     if "messages" not in st.session_state:
