@@ -59,7 +59,7 @@ def run():
     """
     Run the crew.
     """
-    st.title("🏡Bahria Town Real Estate Chatbot")
+    st.title("🏠 Bahria Town Real-Estate Agent")
 
     # Initialize session state for messages
     if "messages" not in st.session_state:
