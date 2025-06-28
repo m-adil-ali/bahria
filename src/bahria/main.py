@@ -1,6 +1,6 @@
-__import__('pysqlite3')
-import sys
-sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
+# __import__('pysqlite3')
+# import sys
+# sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
 
 from crew import RealEstateFlow, Bahria
 import streamlit as st
@@ -98,7 +98,7 @@ def run():
 
         # Run the crew to get the response
         try:
-            response = flow.kickoff(inputs={"user_input": user_input, "prompt": prompt_template})
+            response = flow.kickoff(inputs={"user_input": user_input, "prompt": prompt_template}) 
             if not response:  # Debug: Check if response is empty
                 response = "Error: No response returned from the flow."
         except Exception as e:

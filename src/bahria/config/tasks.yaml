@@ -1,26 +1,62 @@
 analyze_query_task:
   description: >
-    Analyze the user query to determine if it's a general/greeting related or query related to requesting fetch property in bahria town.
-    Output a JSON string without markdown format e.g(``` json), with one key 'query_type' and second key 'response', if the user_input is general/greeting populate the value of "query_type"  as "general_query" and value of response as the answer of user_input acting as helpful assistant of real estate in bahria town, e.g "Hi there, How can I assist you finding property in bahria town?".
-    And, if the user_input is related to property_fetch request, then populate value of "query_type" as "property_fetch_request" and value of response an empty string like "". 
-    Remember general question about bahria town (like: what/where is bahria town? etc) is not property fetching request.
-    Example output should be like this(a JSON plain string without markdown format): '{"query_type": "general_query", "response": "Hello! How can I assist you today?"}' or '{"query_type": "property_fetch_request", "response": ""}'
-  expected_output: >
-    A JSON string, e.g., '{"query_type": "general_query", "response": "Hello! How can I assist you today?"}' or '{"query_type": "property_fetch_request", "response": ""}'
+    You are a helpful AI real estate agent specialized only in Bahria Town properties. Your role is to interactively gather the following **mandatory** details from the user:
 
-fetch_property_task: 
-  description: >
-    Process the following user query: '{user_input}' and provide an appropriate response.
-      1. Convert the natural language query into a MongoDB query using find() filter or aggregation pipeline as appropriate. 
-        Always remember, do **not** include any explanations, comments, or additional markdown format e.g(``` json) only the plain string query itself
-        To make mongoDB queries of natural language questions, follow the prompt template below in triple backticks:
-        ```{prompt}```
-      2. Run the query using the MongoDBQueryTool.
-      3. If the query fails due to syntax errors, spelling mistakes, or incorrect field names, reason on the failure, regenerate a corrected MongoDB query, and rerun it.
-      4. If no data is found due to narrow criteria (e.g., fixed price), broaden the criteria (e.g., use a price range instead), regenerate the query, and rerun it.
-      5. If data is fetched, summarize each fetched documents collectively by giving individual summarized breakdown of important features like(purpose,payment_type,price,area_size,owner_contact, phase, city etc) of each fetched property in natural language and user-friendly way.
-      6. If no data is found after all attempts, apologize and suggest broadening the search criteria.
-#      7. Here are previous interactions with the assistant to let you context aware, use this data and avoid generating query and running tool if the user asks about previously fetch data: {context} 
+    - Type of property (e.g., residential plot, commercial plot, farmhouse, plaza, home, apartment, shop, etc.)
+    - Purpose (e.g., buy, sell, rent)
+    - City (must be one of: Lahore, Karachi, Rawalpindi, Islamabad, Nawabshah)
+    - Any other optional specific details (e.g., budget, area size, phase, etc.)
+
+    **Rules**:
+    - At each turn, check which mandatory details are missing and ask **only** for those.
+    - **Never** repeat questions for details that have already been provided.
+    - Once all required information is gathered, **respond with JSON object only.**
+    - **Do NOT** include any explanation, greeting, confirmation, or additional text outside the JSON.
+    - **Your entire response must be only a valid JSON object** in this exact format:
+
+    {
+      "property_details" : "..."
+    }
+
+    - Include all the gathered details in a single sentence as the value of `property_details`.
+
+    IMPORTANT: **Do not include any text before or after the JSON.** Only return the JSON object. No greeting. No summary. No explanation. Just JSON.
+    
   expected_output: >
-    Generate a polite and summarized response to the property query, including error handling or suggestions if no data is found.
+    {"property_details": "looking for a 5 marla Home in Lahore for rent"}
+
+
+fetch_property_task:
+  description: >
+    You are a real estate assistant tasked with handling user property queries by converting the user's natural language input into a MongoDB query and fetching results accordingly.
+
+    Instructions:
+    1. Convert the natural language 'user_input' into a valid MongoDB query string suitable for the MongoDBQueryTool. Use find() filters or aggregation pipeline as needed.
+       - Output **only the plain string of the MongoDB query** (no explanations, no markdown formatting, no JSON blocks).
+       - Use the following prompt template wrapped in triple backticks to construct the query: ```{prompt}```
+
+    2. Run the query using the MongoDBQueryTool.
+
+    3. If the query fails due to syntax errors, incorrect field names, or any error:
+       - Do NOT expose error messages or raw JSON in the user response(Final Answer).
+       - Instead, reason internally, fix the query, and retry.
+       - If it still fails after retries, respond with a polite, user-friendly apology such as:
+         "I'm sorry, I couldn't find properties matching your criteria. Could you please broaden your search parameters?"
+
+    4. If the query returns no data due to very narrow criteria:
+       - Attempt to broaden the query (e.g., widen price range) and rerun it.
+       - If no data is found after all attempts, respond only with a polite apology and suggestion as above.
+
+    5. If data is found:
+       - Do NOT output any JSON or raw database documents.
+       - Instead, provide a natural language summary of each individual property found as a separate numbered paragraph.
+       - for each property, list key features clearly: Purpose, Payment Type, Price, Area Size, Owner Contact, City, Society, Phase, and any special amenities (bedrooms, garden, pool, parking, etc).
+       - No JSON, code blocks, or markdown formatting in the output, only Natural Language response.
+
+    6. Always avoid including any raw query JSON, error tracebacks, or technical details in the user-facing output(Final Answer).
+
+    7. Never include markdown formatting (like ```json) or any JSON output in the final user response(Final Answer).
+
+  expected_output: >
+    A polite, natural language summary of the properties found, or a user-friendly apology and suggestion if none found.
   agent: property_agent

@@ -13,11 +13,12 @@ import google.generativeai as genai
 load_dotenv()
 
 api_key = os.getenv('GEMINI_API_KEY')
-model = "gemini-1.5-flash"
-
+model = "gemini-2.5-flash-lite-preview-06-17" 
+print(f"Using model and api: {model, api_key}")
 genai.configure(api_key=api_key)
-model = genai.GenerativeModel(model)
-chat = model.start_chat(history=[])
+
+llm_model = genai.GenerativeModel(model_name=model, system_instruction="""You are a helpful context aware real estate agent that can assist users in finding properties in Bahria Town, Pakistan. You can answer questions about property details, availability, and pricing. If you don't have enough information, ask the user for more details.""")
+chating = llm_model.start_chat(history=[])
 
 @CrewBase
 class Bahria():
@@ -43,7 +44,7 @@ class Bahria():
         agent_cfg = self.agents_config.get('property_agent', {})
         return Agent(
             config=agent_cfg,
-            llm= os.getenv('MODEL'), 
+            llm = os.getenv("MODEL"),
             tools=[MongoTool()],
             verbose= True
         )
@@ -82,29 +83,12 @@ class RealEstateFlow(Flow[FlowState]):
         self.analyze_query_task = crew.analyze_query_task()
         self.fetch_property_task = crew.fetch_property_task()
         self.llm = os.getenv('MODEL')
-        self.chat = chat
-    
-    def _update_last_user_message(self, clean_user_input: str):
-        """
-        Traverse chat history in reverse to find the last user message
-        and update its parts with the cleaned user input.
-        Supports both dict and object types for compatibility.
-        """
-        for i in range(len(self.chat.history) - 1, -1, -1):
-            msg = self.chat.history[i]
-            # Determine the role for both dict and object types
-            role = msg["role"] if isinstance(msg, dict) else getattr(msg, "role", None)
-            if role == "user":
-                if isinstance(msg, dict):
-                    msg["parts"] = [{"text": clean_user_input}]
-                else:
-                    msg.parts = [{"text": clean_user_input}]
-                break
-    
+        self.chater = chating
+       
     def _update_last_model_message(self, new_text: str):
     # Traverse history in reverse to find the last model message
-        for i in range(len(self.chat.history) - 1, -1, -1):
-            msg = self.chat.history[i]
+        for i in range(len(self.chater.history) - 1, -1, -1):
+            msg = self.chater.history[i]
             # For dict-based or attribute-based access
             role = msg["role"] if isinstance(msg, dict) else getattr(msg, "role", None)
             if role == "model":
@@ -115,67 +99,38 @@ class RealEstateFlow(Flow[FlowState]):
                     msg.parts = [{"text": new_text}]
                 break
 
-    def _add_agent_response_to_history(self, agent_response: str):
-        for i in range(len(self.chat.history) - 1, -1, -1):
-            msg = self.chat.history[i]
-            # Support both dict and object types
-            role = msg["role"] if isinstance(msg, dict) else getattr(msg, "role", None)
-            if role == "model":
-                if isinstance(msg, dict):
-                    msg["parts"] = [{"text": agent_response}]
-                else:
-                    msg.parts = [{"text": agent_response}]
-                break
+        # with open('chat_history.txt', 'a') as f:
+        #             f.write(str(self.chater.history) + "\n")
     @start()
     def analyze_query(self): 
         self.state.iteration = 0
         user_input = self.state.user_input
 
-        try:
-            
-            text = self.analyze_query_task.description + user_input
-            response = self.chat.send_message(text)
-            analysis_result = response.text
-            match = re.search(r'\{.*\}', analysis_result, re.DOTALL)
-            if match:
-                clean_result = match.group(0)
+        try:  
+            length = len(self.chater.history)
+            if length == 0:
+                text = self.analyze_query_task.description + "\nExpected Output:" + self.analyze_query_task.expected_output + "\nUser Input:" + user_input
+                #print("prompt to llm:", text)
+                response = self.chater.send_message(text).text
             else:
-                return f"Failed to extract JSON object from LLM response: {analysis_result}"
-            
-            analysis_dict = json.loads(clean_result)
-            self.state.analysis_dict = analysis_dict
-            self._update_last_user_message(user_input)
+                response = self.chater.send_message(user_input).text
+            try:
+                analysis_dict = json.loads(response)
 
+                #print(f"Cleaned result: {analysis_dict}")
+                self.state.analysis_dict = analysis_dict
+                
+                return self.handle_property_query()
+
+            except json.JSONDecodeError:
+                #print("Response was not a valid JSON object:", response)
+                return response
+           
         except json.JSONDecodeError as e:
             return f"JSON parsing failed. Error: {str(e)}"
         except Exception as e:
             return f"Error analyzing query: {str(e)}"
         
-    @router(analyze_query)
-    def route_query(self):
-        analysis_dict = self.state.analysis_dict or {}
-        query_type = analysis_dict.get('query_type', '')
-
-        if query_type == 'general_query':
-            return "general_greeting"
-        elif query_type == 'property_fetch_request':
-            return "property_query"
-        else:
-            # Default fallback event or error handling
-            return "unknown_query"
-    
-    @listen("general_greeting")
-    def handle_general_greeting(self):
-        user_input = self.state.user_input
-        response = self.state.analysis_dict.get('response', "Hello!")
-        
-        # Update the last assistant message in history with cleaned response
-        self._update_last_model_message(response)
-        
-        #print(f"Chat history length: {len(self.chat.history)}")
-        #print(f"After changes, Chat history : {self.chat.history}")
-        return response
-
     @listen('property_query')
     def handle_property_query(self):
         
@@ -185,10 +140,11 @@ class RealEstateFlow(Flow[FlowState]):
         if self.state.iteration > self.state.max_iterations:
             response = "Sorry, I couldn't find a suitable property after several attempts. Please refine your query."
 
-            self._update_last_model_message(response)
+            #self._update_last_model_message(response)
             return response
         
-        user_input = self.state.user_input
+        #user_input = self.state.user_input
+        user_input = self.state.analysis_dict.get("property_details", "")
         prompt = self.state.prompt
        # context = self.chat.history
         task_description = self.fetch_property_task.description.format(
@@ -204,13 +160,14 @@ class RealEstateFlow(Flow[FlowState]):
         try:
             property_result = self.property_agent.execute_task(formatted_task, user_input)
             
-            self._add_agent_response_to_history(property_result)
+            #self._update_last_model_message(property_result)
             #print(f"Property query response: {property_result}")
-            #print(f"Chat history length: {len(self.chat.history)}")
-            #print(f"After changes, Chat history : {self.chat.history}")
+            # print(f"Chat history length: {len(self.chater.history)}")
+            # print(f"Chat history : {self.chater.history}")
             return property_result
         except Exception as e:
             error_msg = f"Error fetching property data: {str(e)}"
+            self._update_last_model_message(error_msg)
             return error_msg
 
     @listen("unknown_query")
@@ -220,5 +177,6 @@ class RealEstateFlow(Flow[FlowState]):
         
         self._update_last_model_message(response)
         return response
+    
 
         
