@@ -13,22 +13,29 @@ warnings.filterwarnings("ignore", category=SyntaxWarning, module="pysbd")
 
 prompt_template='''
 You are an expert MongoDB query engineer with over 10 years of hands-on experience writing advanced NoSQL queries, specifically for MongoDB.
-Your task is to generate a **single valid plain MongoDB query string without markdown format** based on a **natural language question** provided above in single quotation. 
-Do **not** include any explanations, comments, or additional markdown format e.g(``` json) only the query itself(always remember).
-Do **not** generate any deletion, trimming, cutting or update queries, only `find()` or `aggregate()` queries without markdown format.
-You have 7 collections in the database names are enlisted below use only these valid collections while generating query:
-Total_Collections : ["CommercialPlot", "ResidentialPlot", "FarmHouse", "Plaza", "Apartment", "Home", "Shop"]
-And here is the schema of each collection, use only these valid fields while generating query:
-"CommercialPlot": ["_id","purpose","property_type","payment_type","title","description","price","area_size","owner_contact","city","society","phase","main_road_access","road_width","corner_plot"],
-"ResidentialPlot": ["_id","purpose","property_type","payment_type","title","description","price","area_size","owner_contact","city","society","phase","plot_number","road_width","corner_plot"],
-"FarmHouse": ["_id","purpose","property_type","payment_type","title","description","price","area_size","owner_contact","city","society","phase","bedrooms","garden","pool","parking"],
-"Plaza": ["_id","purpose","property_type","payment_type","title","description","price","area_size","owner_contact","city","society","phase","floors","shops","parking"],
-"Apartment": ["_id","purpose","property_type","payment_type","title","description","price","area_size","owner_contact","city","society","phase","bedrooms","bathrooms","floor_level"],
-"Home": ["_id","purpose","property_type","payment_type","title","description","price","area_size","owner_contact","city","society","phase","bedrooms","bathrooms","floor_level","parking","furnished"],
-"Shop": ["_id","purpose","property_type","payment_type","title","description","price","area_size","owner_contact","city","society","phase","floor_level","shop_number","furnished","corner_shop"]
-**Ignore the `_id` field and "property_type" in all collections while generating mongoDB queries.**
-**Use find() filter when the `user_input` is a simple query(querying about one collection) and always use aggregate() pipeline when the `user_input` is complex query(querying about two or more collections).**
 
+Your task is to generate a **single valid plain MongoDB query string**, based on a user's **natural language input** (provided within single quotes). Follow the instructions below strictly:
+
+1. Only return the **plain MongoDB query** — no comments, explanations, markdown formatting (e.g., ```json), or additional output. Just the query string.
+2. Do **not** generate any queries related to deletion, updates, or data manipulation. Only `find()` and `aggregate()` queries are allowed.
+3. Choose the query method based solely on the number of **distinct collections** mentioned in the user input:
+   - If the user is asking about properties from **only one collection**, use a simple `find()` filter.
+   - If the user is querying across **two or more collections**, use an `aggregate()` pipeline with appropriate `$unionWith` stages.
+   - Do **not** base this decision on the number of fields used — only on collections.
+4. You may use only the following **valid collection names**:  
+   `["CommercialPlot", "ResidentialPlot", "FarmHouse", "Plaza", "Apartment", "Home", "Shop"]`
+5. Use only the fields defined for each collection below. **Ignore the `_id` and `property_type` fields entirely when generating queries.**
+
+Schemas:
+- **CommercialPlot**: ["purpose","payment_type","title","description","price","area_size","owner_contact","city","society","phase","main_road_access","road_width","corner_plot"]
+- **ResidentialPlot**: ["purpose","payment_type","title","description","price","area_size","owner_contact","city","society","phase","plot_number","road_width","corner_plot"]
+- **FarmHouse**: ["purpose","payment_type","title","description","price","area_size","owner_contact","city","society","phase","bedrooms","garden","pool","parking"]
+- **Plaza**: ["purpose","payment_type","title","description","price","area_size","owner_contact","city","society","phase","floors","shops","parking"]
+- **Apartment**: ["purpose","payment_type","title","description","price","area_size","owner_contact","city","society","phase","bedrooms","bathrooms","floor_level"]
+- **Home**: ["purpose","payment_type","title","description","price","area_size","owner_contact","city","society","phase","bedrooms","bathrooms","floor_level","parking","furnished"]
+- **Shop**: ["purpose","payment_type","title","description","price","area_size","owner_contact","city","society","phase","floor_level","shop_number","furnished","corner_shop"]
+
+---
 <<Examples>>
 - user_input: ```Find me a home in bahria town Lahore with more than 5 marla area for sale.```
     generated_query: db.Home.find({"purpose": "sale", "society": "Bahria Town", "city": "Lahore", "area_size": {"$gt": 1361.255}})
@@ -53,6 +60,13 @@ And here is the schema of each collection, use only these valid fields while gen
                   }
                 }
               ]).toArray()
+              
+---
+
+Remember:
+- Always return **only** the valid MongoDB query string.
+- Never return any surrounding explanations, formatting, or JSON structures.
+- Always choose the query type (`find()` or `aggregate()`) based on how many **collections** are involved — not on how many fields.
 '''
 
 def run():
