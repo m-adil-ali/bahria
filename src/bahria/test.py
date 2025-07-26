@@ -73,6 +73,3 @@ except Exception as e:
 # #     print("Pinged your deployment. You successfully connected to MongoDB!")
 # # except Exception as e:
 # #     print(e)
-
-# # # MONGODB_URI1="mongodb+srv://adilali:mongopass@mycluster.akfzoin.mongodb.net/?retryWrites=true&w=majority&appName=mycluster"
-# # # DB_NAME1 = "RealEstate"
