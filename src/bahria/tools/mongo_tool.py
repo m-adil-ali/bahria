@@ -39,8 +39,10 @@ class MongoTool(BaseTool):
     description: str = (
         "Executes a MongoDB query using either `find()` with a filter or `aggregate()` with a pipeline. "
         "Collection name can be embedded using '_collection' or passed via `collection_hint`."
+        "Returns results as a JSON string or an error/no-data message."
     )
     args_schema: Type[BaseModel] = MongoToolInput
+    last_output: Optional[str] = None
 
     def _extract_json_from_string(self, raw_str: str):
         """
@@ -48,7 +50,7 @@ class MongoTool(BaseTool):
         Returns parsed JSON object or raises ValueError.
         """
         # Regex to extract JSON inside backticks or triple backticks
-        pattern = r"``````|``````|(\{.*\})|(\[.*\])"
+        pattern = r"``````|```json|(\{.*\})|(\[.*\])"
         match = re.search(pattern, raw_str, re.DOTALL)
         if not match:
             # If no JSON found, try to parse the whole string
@@ -88,8 +90,9 @@ class MongoTool(BaseTool):
                     return "Error: Collection name not found. Provide '_collection' in filter or set 'collection_hint'."
                 col = db[collection_name]
                 docs = list(col.find(filter, {"_id": 0}))
-                return dumps(docs) if docs else "No matching documents found."
-
+                self.last_output = dumps(docs) if docs else "No properties found matching your criteria."
+                return self.last_output
+            
             elif pipeline:
                 if not isinstance(pipeline, list) or not pipeline:
                     return "Error: Pipeline must be a non-empty list of stages."
@@ -98,8 +101,9 @@ class MongoTool(BaseTool):
                     return "Error: Collection name not found. Provide '_collection' in pipeline[0] or set 'collection_hint'."
                 col = db[collection_name]
                 docs = list(col.aggregate(pipeline))
-                return dumps(docs) if docs else "No matching documents found."
-
+                self.last_output = dumps(docs) if docs else "No properties found matching your criteria."
+                return self.last_output
+            
             return "Error: Neither 'filter' nor 'pipeline' provided."
 
         except Exception as e:

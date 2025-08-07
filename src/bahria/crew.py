@@ -195,7 +195,7 @@ class RealEstateFlow(Flow[FlowState]):
         formatted_task = Task(
             description=task_description,
             expected_output=self.fetch_property_task.expected_output,
-            agent=self.property_agent
+            agent=self.property_agent,
         )
         try:
             property_result = self.property_agent.execute_task(formatted_task, property_details)
