@@ -101,7 +101,7 @@ class Bahria():
         return Agent(
             config=agent_cfg,
             llm = os.getenv("OPENAI_MODEL"),
-            tools=[MongoTool()],
+            tools=[MongoTool(result_as_answer=True)],
             verbose= True
         )
 
@@ -160,7 +160,13 @@ class RealEstateFlow(Flow[FlowState]):
                 print(f"Cleaned result: {analysis_dict}")
                 self.state.analysis_dict = analysis_dict
                 
-                return self.handle_property_query()
+                tool_output =  self.handle_property_query()
+                
+                prompt = f'For this property_query: `{property_details}`.\nHere is the tool output(fetched data from mongoDB tool against the property_query): {tool_output}.\nPlease summaries only those properties for which the user is asking in the property_query, as per the rules mentioned in the system prompt.'
+                # print(f"Prompt for chater: {prompt}")
+                response1 = self.chater.send_message(prompt)
+                
+                return response1
             
 
             except json.JSONDecodeError:
@@ -199,15 +205,15 @@ class RealEstateFlow(Flow[FlowState]):
         )
         try:
             property_result = self.property_agent.execute_task(formatted_task, property_details)
-            agent_output = property_result
+            tool_output = property_result
             agent_history.append({
             "sr_number": sr_number,
             "property_details": property_details,
-            "agent_output": agent_output
+            "tool_output": tool_output
         })
             sr_number += 1
             
-            print(f"value replaced in agent_output: {agent_output}")
+            print(f"value replaced in agent_output: {tool_output}")
             # print(f"Chat history length: {len(self.chater.history)}")
             # print(f"Chat history : {self.chater.history}")
             return property_result

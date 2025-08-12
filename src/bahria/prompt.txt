@@ -4,8 +4,8 @@ Your task is to generate a **single valid plain MongoDB query string**, based on
 
 1. Only return the **plain MongoDB query** — no comments, explanations, markdown formatting (e.g., ```json), or additional output. Just the query string.
 2. Do **not** generate any queries related to deletion, updates, or data manipulation. Only `find()` and `aggregate()` queries are allowed.
-3. If the user input contains **purpose** keywords like "buy", or "rent", ensure the query includes a filter for `list_type` based on the purpose:
-   - For `"purpose":"buy"` or `"purpose":"rent"`, use `"list_type": "Sale"` or `"list_type": "Rent"`.
+3. Only extract `city` and `society` from the `property_details` statement to generate MongoDB query, and ignore other property specifications added by user(as mentioned in the examples below), this will help to keep MongoDB query more broaden and less narrow.
+    e.g. property_details: ```Looking for a commercial plots for sale in gulberg Lahore with less than 15 Million price.```     generated_query: db.commercial_plots.find({"society": { $regex: "gulberg", $options: "i" }, "city": "Lahore" }) (ignoring list_type and price fields to keep MongoDB query wider)
 4. Choose the query method based solely on the number of **distinct collections** mentioned in the user input:
    - If the user is asking about properties from **only one collection**, use a simple `find()` filter.
    - If the user is querying across **two or more collections**, use an `aggregate()` pipeline with appropriate `$unionWith` stages.
@@ -25,14 +25,14 @@ Schemas:
 
 ---
 <<Examples>>
-- user_input: ```Interested in properties in Islamabad bahria town society.```
+- property_details: ```Interested in properties in Islamabad bahria town society.```
     db.apartments.aggregate([ { $match: { city: "Islamabad", society: { $regex: "bahria town", $options: "i" } } }, { $unionWith: { coll: "homes", pipeline: [ { $match: { city: "Islamabad", society: { $regex: "bahria town", $options: "i" } } } ] } }, { $unionWith: { coll: "shops", pipeline: [ { $match: { city: "Islamabad", society: { $regex: "bahria town", $options: "i" } } } ] } }, { $unionWith: { coll: "commercial_plots", pipeline: [ { $match: { city: "Islamabad", society: { $regex: "bahria town", $options: "i" } } } ] } }, { $unionWith: { coll: "farmhouses", pipeline: [ { $match: { city: "Islamabad", society: { $regex: "bahria town", $options: "i" } } } ] } }, { $unionWith: { coll: "residential_plots", pipeline: [ { $match: { city: "Islamabad", society: { $regex: "bahria town", $options: "i" } } } ] } }, { $unionWith: { coll: "plazas", pipeline: [ { $match: { city: "Islamabad", society: { $regex: "bahria town", $options: "i" } } } ] } } ])
 
-- user_input: ```Find me a home in dha Lahore with more than 5 marla area size and extra land for sale.```
-    generated_query: db.homes.find({"list_type": "Sale", society: { $regex: "dha", $options: "i" }, "city": "Lahore", "size.value": {"$gt": 5}, "size.unit" : "Marla", "extra_land.value": {"$gt": 5}, "extra_land.unit": "Marla"})
+- property_details: ```Looking for a home for sale in dha Lahore with more than 5 marla area size and extra land.```
+    generated_query: db.homes.find({"society": { $regex: "dha", $options: "i" }, "city": "Lahore" })
 
-- user_input: ```looking for any property either be home, apartment, plaza in bahria town lahore in any phase where size must be greater than 1000 sq ft```
-    db.apartments.aggregate([ { $match: { city: "Lahore", society: { $regex: "bahria town", $options: "i" }, "size.unit": "Square Feet", "size.value": { $gt: 1000 } } }, { $addFields: { source: "apartments" } }, { $unionWith: { coll: "homes", pipeline: [ { $match: { city: "Lahore", society: { $regex: "bahria town", $options: "i" }, "size.unit": "Square Feet", "size.value": { $gt: 1000 } } }, { $addFields: { source: "homes" } } ] } }, { $unionWith: { coll: "plazas", pipeline: [ { $match: { city: "Lahore", society: { $regex: "bahria town", $options: "i" }, "size.unit": "Square Feet", "size.value": { $gt: 1000 } } }, { $addFields: { source: "plazas" } } ] } } ])    
+- property_details: ```looking for any property either be home, apartment, plaza in bahria town lahore in any phase where size must be greater than 1000 sq ft```
+    db.apartments.aggregate([ { $match: { city: "Lahore", society: { $regex: "bahria town", $options: "i" } } }, { $addFields: { source: "apartments" } }, { $unionWith: { coll: "homes", pipeline: [ { $match: { city: "Lahore", society: { $regex: "bahria town", $options: "i" } } }, { $addFields: { source: "homes" } } ] } }, { $unionWith: { coll: "plazas", pipeline: [ { $match: { city: "Lahore", society: { $regex: "bahria town", $options: "i" } } }, { $addFields: { source: "plazas" } } ] } } ])    
             
 ---
 
