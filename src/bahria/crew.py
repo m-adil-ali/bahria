@@ -32,6 +32,7 @@ property_details: str = ""
 agent_output: str = ""
 sr_number: int = 1
 agent_history: List[Dict] = []
+total_properties: int = 0
 
 
 class Chat:
@@ -52,7 +53,7 @@ class Chat:
         # Replace literal "\n" with actual newlines
         cleaned_description = raw_description.replace('\\n', '\n')
         # Format with agent_history and sr_number
-        system_prompt = cleaned_description.format(agent_history=json.dumps(agent_history, indent=2), sr_number=sr_number)
+        system_prompt = cleaned_description.format(agent_history=json.dumps(agent_history, indent=2), sr_number=sr_number, total_properties=total_properties)
         # Update or set system prompt as the first message
         if self.messages and self.messages[0]["role"] == "system":
             self.messages[0]["content"] = system_prompt
@@ -162,7 +163,7 @@ class RealEstateFlow(Flow[FlowState]):
                 
                 tool_output =  self.handle_property_query()
                 
-                prompt = f'For this property_query: `{property_details}`.\nHere is the tool output(fetched data from mongoDB tool against the property_query): {tool_output}.\nPlease summaries only those properties for which the user is asking in the property_query, as per the rules mentioned in the system prompt.'
+                prompt = f'For this property_query: `{property_details}`.\nHere is the tool output(data fetched from mongoDB tool against that property_query): {tool_output}.\nPlease summaries only those properties for which the user is asking in the property_query, as per the rules mentioned in the system prompt.'
                 # print(f"Prompt for chater: {prompt}")
                 response1 = self.chater.send_message(prompt)
                 
@@ -189,7 +190,7 @@ class RealEstateFlow(Flow[FlowState]):
             return response
         
         #user_input = self.state.user_input
-        global property_details, agent_output, sr_number, agent_history
+        global property_details, agent_output, sr_number, agent_history, total_properties
         property_details = self.state.analysis_dict.get("property_details", "")
         prompt = self.state.prompt
        # context = self.chat.history
@@ -206,6 +207,7 @@ class RealEstateFlow(Flow[FlowState]):
         try:
             property_result = self.property_agent.execute_task(formatted_task, property_details)
             tool_output = property_result
+            total_properties = len(tool_output) if isinstance(tool_output, list) else 0
             agent_history.append({
             "sr_number": sr_number,
             "property_details": property_details,
