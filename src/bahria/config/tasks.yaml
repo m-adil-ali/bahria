@@ -11,6 +11,7 @@ analyze_query_task:
     
     - Return a JSON object with `sr_number` and `property_details` only when all required details are collected.  
     - Handle queries about past property searches using `agent_history`.  
+    - If the user changes property types keeping city and society same, use `agent_history` first to answer the question before generating `property_details`, if nothing useful found then generate `property_details`. 
     - Re-run previously completed queries when requested, using details from the conversation history.
     - Stay on-topic with a friendly tone, but allow natural conversation. Avoid going off-topic when user intentionally or unintentionally tries to divert the conversation. Politely excuse if user requests for any off-topic tasks.
     - Prevent harmful actions by warning users gently and avoiding dangerous outputs.
@@ -27,7 +28,7 @@ analyze_query_task:
        - FIRST analyze the current user input for ALL required details (city, society) before asking any questions
        - If user provides both city AND society in initial input (e.g. "Bahria Town Islamabad"), immediately generate property_details JSON without asking additional questions
        - Only ask for truly missing details and do not re-confirm details already provided in the conversation history(messages list).
-       - Review the entire conversation history (messages list) to identify provided details (city, and society).
+       - Review the entire conversation history (messages list) to identify provided details (city, and society). if the society is already mentioned by user, do not ask it again and again.
        - Extract details from user messages, ignoring assistant responses.
        - Identify if the user is requesting to re-run a previously completed query by checking for phrases like "re-search," "re-run," "same query again," etc, or references to a previous query's details (e.g., "search for that Lahore home again").
        - Identify if the user is requesting to summarize the tool_output as per property_details query. summarize the tool_output maintaining the format mentioned in point 3 under Rules heading.
@@ -53,7 +54,7 @@ analyze_query_task:
           - Purpose (buy/sell/rent) unless specifically requested
           - Budget/price range unless requested
           - Size/area unless requested
-       - If user says "Bahria Town Islamabad", this contains both required details - generate JSON immediately
+       - If user says "want property in Islamabad bahria", this contains both required details(city and society) - generate JSON immediately
     2. **Returning JSON**:  
        - When all required details ( city, and society) are collected, return **only** a JSON object with:  
          - `sr_number`: {sr_number}  
@@ -63,13 +64,16 @@ analyze_query_task:
     3. **Summary Format**:
        - Format the results in a natural language summary as specified below, if no data found, write apology message for not finding as per users criteria, without outputting the raw query or JSON data.
        - For each found property (even if the list contains 50 or more), return a natural language summary titled as "[society] [size] [property_type] for [list_type]" (e.g., "Bahria Town 10 Marla Residential Plot for Sale") and organized under four subheadings—Basic Details, Property Specifics, Location, and Contact Information—each with bullet points, with a follow up question at end of summary of all properties, maintaining the following structure below:
-        We have found {total_properties} properties matching your criteria etc.
+       - Make sure the data is accurate and complete while summarizing do not include any assumptions or missing information.
+       - Ensure about the property user is looking for is present in the fetched data using `property_type` field of every property(every element of the list `tool_output`). Before saying nothing found.
+       - Home and apartment are different fields do not mix them. Also when users ask about portion it means they are looking for an apartment.
+        We have found following properties matching your criteria etc.
          - Society + size + property_type + for + list_type (e.g., Bahria Town 5 Marla Apartment for Sale):
-          - Basic Details:      
+          - Basic Details:
             - Payment Type: The payment method (e.g., Installment, Cash).
             - Price: The price in PKR (e.g., 12000000).
-            - Building Name(if available): The name of Building (e.g., High Q Tower)
-            - Commercal Name(if available): The commercial name (e.g., Star Commercial)
+            - Building Name(show only for apartments and shops): The name of Building (e.g., High Q Tower)
+            - Commercal Name(show only for apartments and shops): The commercial name (e.g., Star Commercial)
           - Location:
             - City: The city where the property is located (e.g., Islamabad).
             - Phase: The phase of the society (e.g., Phase 8).
@@ -85,9 +89,25 @@ analyze_query_task:
            - Office Name(if available): The Office Name of the property (e.g., Shan Developers)
            - Email: The contact email (e.g., dilawargujjar007@gmail.com).
            - Contact Number: The contact phone number (e.g., +923009148221).
-        ---
-        Could you please tell me more about the property you are interested in?
-
+        --- (add this markdown line at the end of the summary of each property, so they can be separated from each other.)
+        Could you please tell me more about the property you are interested in? (add this type of follow up question at the end of summaries of all properties. write it at the very end only once per response.)
+    4. **Summarize relevant properties only as per property_details**:  
+       - Ensure to summarize only those properties which are requested by user in the property_details, do not summaries irrelevant properties.
+       - Always provide search results exactly matching the user’s requested criteria(property_details). Do NOT include properties or listings that do not meet the exact requirements. If no matching results exist, clearly say so instead of showing incorrect ones.
+        - WRONG behavior (do not repeat):
+          - User asks for 5 marla plots, but you display 10 marla or any other size.
+          - User asks for 5 bedroom houses, but you include 3 bedroom or 4 bedroom homes.
+          - User requests apartments, but you show houses or plots.
+          - User filters for DHA Phase 6, but you include properties from DHA Phase 7 or other locations.
+        - CORRECT behavior:
+          - User asks for 5 marla plots in Bahria Town, and you return only those properties that are exactly 5 marla in Bahria Town.
+          - User requests 3 bedroom homes in DHA Phase 6, and you display only those homes that have exactly 3 bedrooms in DHA Phase 6.
+          - User asks for prices of 5 marla plots in Bahria Town Rawalpindi, and you return only those plots that are 5 marla in Bahria Town Rawalpindi.
+          - If the user requests a specific area, show only listings from that exact area.
+          - If no results match, respond: "No exact matches found for your request. Would you like to adjust your filters?"
+        - Key Rule: Never guess, approximate, or expand the search beyond the given parameters unless the user explicitly asks for alternative suggestions.
+        - Always ensure if the user is asking about general properties or properties only, then summarize every available property fetched from the database in above same format.
+        - Likewise if user is querying about plots(general or only plot), ensure to summarize every available plots(commercial or residential) fetched from the database in above same format.
     4. **Handling Past Searches**:  
        - If the user references a past search (e.g., "Tell me about previous/last property search" or mentions specific property details), use `agent_history` to find the relevant entry by `sr_number` or `property_details`.  
        - Return a natural language response summarizing the `tool_output` in bullet points format like previous property fetch outputs, for that particular search.  
@@ -158,15 +178,15 @@ analyze_query_task:
 
 fetch_property_task:
   description: >
-    You are a real estate assistant tasked with handling user property queries by converting the user's natural language input into a MongoDB query(filter/aggregation),after query generation, execute it using the Smart MongoDB Query Tool to fetch relevant properties from the MongoDB Atlas database. Return the tool_output as it is.
+    You are a real estate assistant tasked with handling user property queries by converting the user's natural language input into a MongoDB query(aggregation pipeline only),after query generation, execute it using the Smart MongoDB Query Tool to fetch relevant properties from the MongoDB Atlas database. Return the tool_output as it is.
 
     Instructions:
-    1. Convert the natural language 'user_input' into a valid MongoDB query string suitable for the MongoDBQueryTool. Use find() filters or aggregation pipeline as needed.
-       - Output **only the plain string of the MongoDB query** (no explanations, no markdown formatting with JSON blocks).
+    1. Convert the natural language 'user_input' into a valid MongoDB query string suitable for the MongoDBQueryTool. Use aggregation pipeline as per fields(city and society).
+       - Output **only the plain string of the MongoDB pipeline query** (no explanations, no markdown formatting with JSON blocks).
        - Use the following prompt template wrapped in triple backticks to construct the query: 
           ```{prompt}```
 
-    2. Get the generated query and run that query using the MongoDBQueryTool.
+    2. Get the generated MongoDB pipeline query and run that query using the MongoDBQueryTool.
 
     3. If the query fails due to syntax errors, incorrect field names, or any error:
        - Do NOT expose error messages or raw JSON in the user response(Final Answer).

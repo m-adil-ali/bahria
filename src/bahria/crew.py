@@ -68,7 +68,7 @@ class Chat:
             model= self.model,
             messages=self.messages,
             temperature=0,
-            max_tokens=1500  
+            max_tokens=32000  
         )
         assistant_reply = response.choices[0].message.content
         self.messages.append({"role": "assistant", "content": assistant_reply})
@@ -163,7 +163,7 @@ class RealEstateFlow(Flow[FlowState]):
                 
                 tool_output =  self.handle_property_query()
                 
-                prompt = f'For this property_query: `{property_details}`.\nHere is the tool output(data fetched from mongoDB tool against that property_query): {tool_output}.\nPlease summaries only those properties for which the user is asking in the property_query, as per the rules mentioned in the system prompt.'
+                prompt = f'For this property_query: `{property_details}`.\nHere is the tool output(data fetched from mongoDB tool against that property_query): {tool_output}.\nPlease summaries only those properties for which the user is asking in the property_query(do not summarize other irrelevant properties), as per the rules mentioned in the system prompt.'
                 # print(f"Prompt for chater: {prompt}")
                 response1 = self.chater.send_message(prompt)
                 
